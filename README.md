@@ -23,7 +23,7 @@ This project is the frontend React admin portal for the NAPFA (National Physical
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/napfa-admin-portal.git
+    git clone https://github.com/AhsanRao/NAPFA-Admin-Portal.git
     cd napfa-admin-portal
     ```
 

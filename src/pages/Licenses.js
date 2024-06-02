@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import Paper from "@mui/material/Paper";
 import Table from "@mui/material/Table";
@@ -8,43 +8,34 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
+import TableRow from "@mui/material/TableRow";
+import { FaSignOutAlt, FaRedo, FaTrashAlt, FaHome } from "react-icons/fa";
+import { IoMdAdd } from "react-icons/io";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
-import TableRow from "@mui/material/TableRow";
-import { FaSignOutAlt, FaEdit, FaHome, FaTrashAlt } from "react-icons/fa";
-import { HiSearch } from "react-icons/hi";
-import { IoMdAdd } from "react-icons/io";
 import API_BASE_URL from "../apiConfig";
 
-
-function createData(id, schoolId, name, email, licenses, allLicensesActive) {
+function createData(index, licenseNo, status, expiryDate, deviceName) {
   return {
-    id,
-    schoolId,
-    name,
-    email,
-    licenses,
-    allLicensesActive,
+    index,
+    licenseNo,
+    status,
+    expiryDate,
+    deviceName,
     actionMenuOpen: false,
     actionMenuRef: React.createRef(),
   };
 }
 
-const Schools = () => {
+const Licenses = () => {
   const navigate = useNavigate();
+  const { schoolId } = useParams();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [globalFilter, setGlobalFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [newSchoolName, setNewSchoolName] = useState("");
-  const [newSchoolEmail, setNewSchoolEmail] = useState("");
-  const [createDefaultLicenses, setCreateDefaultLicenses] = useState(false);
-
-  const profileMenuRef = useRef(null);
-  const modalRef = useRef(null);
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -57,58 +48,39 @@ const Schools = () => {
     setSnackbarOpen(false);
   };
 
-  const columns = [
-    { id: "index", label: "No.", minWidth: 50 },
-    { id: "name", label: "Name", minWidth: 170 },
-    { id: "email", label: "Email", minWidth: 170 },
-    { id: "licenses", label: "No. of Licenses", minWidth: 100, align: "center" },
-    {
-      id: "allLicensesActive",
-      label: "",
-      minWidth: 50,
-      align: "center",
-      format: (row) => (
-        <span
-          className={`inline-block w-3 h-3 rounded-full ${
-            row.allLicensesActive ? "bg-green-500" : "bg-red-500"
-          }`}
-        ></span>
-      ),
-    },
-    {
-      id: "action",
-      label: "Action",
-      minWidth: 50,
-      align: "left",
-      format: (row, navigate) => (
-        <div className="flex space-x-4">
-        <FaEdit
-          size={16}
-          className="cursor-pointer text-blue-500"
-          onClick={() => navigate(`/licenses/${row.schoolId}`)}
-        />
-        <FaTrashAlt
-          size={16}
-          className="cursor-pointer text-red-500"
-          onClick={() => handleDelete(row.schoolId)}
-        />
-      </div>
-      ),
-    },
-  ];
+  const profileMenuRef = useRef(null);
+  const modalRef = useRef(null);
 
-  const fetchData = async () => {
+  const [schoolName, setSchoolName] = useState("");
+  const [schoolEmail, setSchoolEmail] = useState("");
+
+  useEffect(() => {
+    const fetchSchoolDetails = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/schools/${schoolId}`);
+        setSchoolName(response.data.schoolName);
+        setSchoolEmail(response.data.email);
+      } catch (error) {
+        console.error("Error fetching school details", error);
+      }
+    };
+
+    fetchSchoolDetails();
+  }, [schoolId]);
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/schools/admin`);
-      const data = response.data.map((school, index) =>
+      const response = await axios.get(
+        `${API_BASE_URL}/schools/${schoolId}/licenses`
+      );
+      const data = response.data.map((license, index) =>
         createData(
           index + 1,
-          school.id,
-          school.name,
-          school.email,
-          school.licenses,
-          school.allLicensesActive
+          license.id,
+          license.status,
+          new Date(license.expiryDate).toLocaleDateString(),
+          license.deviceName || "N/A"
         )
       );
       setRows(data);
@@ -117,11 +89,101 @@ const Schools = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [schoolId]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  const handleRedo = async (id) => {
+    if (window.confirm("Are you sure you want to renew this license?")) {
+      try {
+        const expiryDate = new Date();
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+        await axios.put(`${API_BASE_URL}/schools/${schoolId}/licenses/${id}`, {
+          expiryDate: expiryDate.toISOString(),
+        });
+        setSnackbarMessage("License renewed successfully");
+        setSnackbarSeverity("success");
+        setSnackbarOpen(true);
+        fetchData();
+      } catch (error) {
+        console.error("Error renewing license", error);
+        setSnackbarMessage("Failed to renew license");
+        setSnackbarSeverity("error");
+        setSnackbarOpen(true);
+      }
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this license?")) {
+      try {
+        await axios.delete(
+          `${API_BASE_URL}/schools/${schoolId}/licenses/${id}`
+        );
+        setRows(rows.filter((row) => row.licenseNo !== id));
+        setSnackbarMessage("License deleted successfully");
+        setSnackbarSeverity("success");
+        setSnackbarOpen(true);
+        fetchData();
+      } catch (error) {
+        console.error("Error deleting license", error);
+        setSnackbarMessage("Failed to delete license");
+        setSnackbarSeverity("error");
+        setSnackbarOpen(true);
+      }
+    }
+  };
+
+  const columns = [
+    { id: "index", label: "No.", minWidth: 50 },
+    { id: "licenseNo", label: "License No.", minWidth: 170 },
+    {
+      id: "status",
+      label: "Status",
+      minWidth: 100,
+      align: "center",
+      format: (row) => (
+        <span
+          className={`inline-block px-2 py-1 rounded-full w-20 text-center ${
+            row.status === "expired"
+              ? "bg-red-100 text-red-700"
+              : "bg-green-100 text-green-700"
+          }`}
+        >
+          {row.status}
+        </span>
+      ),
+    },
+    { id: "expiryDate", label: "Expiry Date", minWidth: 100 },
+    { id: "deviceName", label: "Device Name", minWidth: 170 },
+    {
+      id: "actions",
+      label: "Actions",
+      minWidth: 100,
+      align: "left",
+      format: (row, navigate) => (
+        <div className="flex space-x-4">
+          <button
+            onClick={() => handleRedo(row.licenseNo)}
+            className="text-blue-500 hover:text-blue-700"
+            title="Renew License"
+          >
+            <FaRedo size={16} />
+          </button>
+          <button
+            onClick={() => handleDelete(row.licenseNo)}
+            className="text-red-500 hover:text-red-700"
+            title="Delete License"
+          >
+            <FaTrashAlt size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   const handleLogout = () => {
     localStorage.removeItem("auth");
@@ -172,84 +234,31 @@ const Schools = () => {
     setPage(newPage);
   };
 
-  const handleDelete = async (schoolId) => {
-    if (window.confirm("Are you sure you want to delete this school?")) {
-      try {
-        await axios.delete(`${API_BASE_URL}/schools/${schoolId}`);
-        setSnackbarMessage("School deleted successfully");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
-        fetchData(); // Refresh the data
-      } catch (error) {
-        console.error("Error deleting school", error);
-        if (error.response) {
-          // The request was made and the server responded with a status code that falls out of the range of 2xx
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-          setSnackbarMessage(`Failed to delete school: ${error.response.data.message}`);
-        } else if (error.request) {
-          // The request was made but no response was received
-          console.error("Request data:", error.request);
-          setSnackbarMessage("Failed to delete school: No response received from the server");
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          console.error("Error message:", error.message);
-          setSnackbarMessage(`Failed to delete school: ${error.message}`);
-        }
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
-      }
-    }
-  };
-  
-
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(+event.target.value);
     setPage(0);
   };
 
-  const handleCreateNewSchool = async () => {
-    try {
-      await axios.post(`${API_BASE_URL}/schools/admin`, {
-        schoolName: newSchoolName,
-        email: newSchoolEmail,
-        createDefaultLicenses
-      });
-      setSnackbarMessage("School created successfully");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-      fetchData(); // Refresh the data
-      handleCloseModal();
-    } catch (error) {
-      console.error("Error creating new school", error);
-      setSnackbarMessage("Failed to create school");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-    }
-  };
-
-  const filteredRows = rows.filter(
-    (row) =>
-      row.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-      row.email.toLowerCase().includes(globalFilter.toLowerCase())
-  );
-
   return (
     <div className="h-screen flex flex-col">
       <header className="flex flex-wrap justify-between items-center p-4 bg-white shadow sticky top-0">
         <div className="flex items-center space-x-4 w-full md:w-auto">
-          <h1 className="text-2xl font-bold">School Fitness Test</h1>
+          <h1 className="text-2xl font-bold">Licenses Details</h1>
         </div>
-        <div className="relative w-full md:w-1/3 mt-4 md:mt-0">
+
+        <div className="flex items-center space-x-4 w-full md:w-1/3 mt-4 md:mt-0">
           <input
             type="text"
-            placeholder="Search"
-            className="p-2 w-full border rounded-full pl-10 bg-gray-100"
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            value={schoolName}
+            readOnly
+            className="p-2 pl-4 w-full border rounded-md bg-gray-100 text-sm"
           />
-          <HiSearch className="absolute top-3 left-3 text-gray-500" />
+          <input
+            type="text"
+            value={schoolEmail}
+            readOnly
+            className="p-2 pl-4 w-full border rounded-md bg-gray-100 text-sm"
+          />
         </div>
         <div className="flex items-center space-x-4 w-full md:w-auto mt-4 md:mt-0">
           <button
@@ -257,7 +266,7 @@ const Schools = () => {
             onClick={handleOpenModal}
           >
             <IoMdAdd className="mr-3" />
-            New Account
+            Add More
           </button>
           <div className="relative" ref={profileMenuRef}>
             <img
@@ -310,8 +319,6 @@ const Schools = () => {
                 type="text"
                 placeholder="Enter name"
                 className="w-full px-4 py-2 border rounded-lg bg-gray-100"
-                value={newSchoolName}
-                onChange={(e) => setNewSchoolName(e.target.value)}
               />
             </div>
             <div className="mb-6">
@@ -322,27 +329,17 @@ const Schools = () => {
                 type="email"
                 placeholder="Enter email"
                 className="w-full px-4 py-2 border rounded-lg bg-gray-100"
-                value={newSchoolEmail}
-                onChange={(e) => setNewSchoolEmail(e.target.value)}
               />
             </div>
             <div className="mb-6">
               <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  className="form-checkbox"
-                  checked={createDefaultLicenses}
-                  onChange={(e) => setCreateDefaultLicenses(e.target.checked)}
-                />
+                <input type="checkbox" className="form-checkbox" />
                 <span className="ml-2 text-gray-600">
                   Create default licenses
                 </span>
               </label>
             </div>
-            <button
-              className="w-full bg-green-500 text-white py-2 mt-4 rounded-2xl hover:bg-green-600"
-              onClick={handleCreateNewSchool}
-            >
+            <button className="w-full bg-green-500 text-white py-2 mt-4 rounded-2xl hover:bg-green-600">
               Create
             </button>
           </div>
@@ -371,48 +368,40 @@ const Schools = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredRows.length > 0 ? (
-                    filteredRows
-                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                      .map((row, index) => {
-                        return (
-                          <TableRow
-                            hover
-                            role="checkbox"
-                            tabIndex={-1}
-                            key={row.id}
-                          >
-                            {columns.map((column) => {
-                              const value =
-                                column.id === "index"
-                                  ? page * rowsPerPage + index + 1
-                                  : row[column.id];
-                              return (
-                                <TableCell key={column.id} align={column.align}>
-                                  {column.format
-                                    ? column.format(row, navigate)
-                                    : value}
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        );
-                      })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} align="center">
-                        No data
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
+  {rows.length > 0 ? (
+    rows
+      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+      .map((row, index) => (
+        <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
+          {columns.map((column) => {
+            const value =
+              column.id === "index"
+                ? page * rowsPerPage + index + 1
+                : row[column.id];
+            return (
+              <TableCell key={column.id} align={column.align}>
+                {column.format ? column.format(row, navigate) : value}
+              </TableCell>
+            );
+          })}
+        </TableRow>
+      ))
+  ) : (
+    <TableRow>
+      <TableCell colSpan={columns.length} align="center" style={{ padding: "50px 0" }}>
+        No Licenses!
+      </TableCell>
+    </TableRow>
+  )}
+</TableBody>
+
               </Table>
             )}
           </TableContainer>
           <TablePagination
             rowsPerPageOptions={[10, 25, 50]}
-            component="div"
-            count={filteredRows.length}
+            component="center"
+            count={rows.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -437,4 +426,4 @@ const Schools = () => {
   );
 };
 
-export default Schools;
+export default Licenses;

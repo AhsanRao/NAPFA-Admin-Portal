@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login';
 import Schools from './pages/Schools';
+import Licenses from './pages/Licenses';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import PublicRoute from './PublicRoute';
@@ -37,6 +38,7 @@ function App() {
           }
         />
         <Route path="*" element={<NotFound />} />
+        <Route path="/licenses/:schoolId" element={<Licenses />} />
       </Routes>
     </Router>
   );

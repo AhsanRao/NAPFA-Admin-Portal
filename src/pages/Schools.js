@@ -16,7 +16,6 @@ import { HiSearch } from "react-icons/hi";
 import { IoMdAdd } from "react-icons/io";
 import API_BASE_URL from "../apiConfig";
 
-
 function createData(id, schoolId, name, email, licenses, allLicensesActive) {
   return {
     id,
@@ -61,7 +60,12 @@ const Schools = () => {
     { id: "index", label: "No.", minWidth: 50 },
     { id: "name", label: "Name", minWidth: 170 },
     { id: "email", label: "Email", minWidth: 170 },
-    { id: "licenses", label: "No. of Licenses", minWidth: 100, align: "center" },
+    {
+      id: "licenses",
+      label: "No. of Licenses",
+      minWidth: 100,
+      align: "center",
+    },
     {
       id: "allLicensesActive",
       label: "",
@@ -82,17 +86,17 @@ const Schools = () => {
       align: "left",
       format: (row, navigate) => (
         <div className="flex space-x-4">
-        <FaEdit
-          size={16}
-          className="cursor-pointer text-blue-500"
-          onClick={() => navigate(`/licenses/${row.schoolId}`)}
-        />
-        <FaTrashAlt
-          size={16}
-          className="cursor-pointer text-red-500"
-          onClick={() => handleDelete(row.schoolId)}
-        />
-      </div>
+          <FaEdit
+            size={16}
+            className="cursor-pointer text-blue-500"
+            onClick={() => navigate(`/licenses/${row.schoolId}`)}
+          />
+          <FaTrashAlt
+            size={16}
+            className="cursor-pointer text-red-500"
+            onClick={() => handleDelete(row.schoolId)}
+          />
+        </div>
       ),
     },
   ];
@@ -187,11 +191,15 @@ const Schools = () => {
           console.error("Response data:", error.response.data);
           console.error("Response status:", error.response.status);
           console.error("Response headers:", error.response.headers);
-          setSnackbarMessage(`Failed to delete school: ${error.response.data.message}`);
+          setSnackbarMessage(
+            `Failed to delete school: ${error.response.data.message}`
+          );
         } else if (error.request) {
           // The request was made but no response was received
           console.error("Request data:", error.request);
-          setSnackbarMessage("Failed to delete school: No response received from the server");
+          setSnackbarMessage(
+            "Failed to delete school: No response received from the server"
+          );
         } else {
           // Something happened in setting up the request that triggered an Error
           console.error("Error message:", error.message);
@@ -202,7 +210,6 @@ const Schools = () => {
       }
     }
   };
-  
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(+event.target.value);
@@ -214,7 +221,7 @@ const Schools = () => {
       await axios.post(`${API_BASE_URL}/schools/admin`, {
         schoolName: newSchoolName,
         email: newSchoolEmail,
-        createDefaultLicenses
+        createDefaultLicenses,
       });
       setSnackbarMessage("School created successfully");
       setSnackbarSeverity("success");
@@ -350,7 +357,9 @@ const Schools = () => {
       )}
       <div className="p-4 flex-1 overflow-auto">
         <Paper sx={{ width: "100%", height: "100%", overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: "calc(100vh - 150px)" }}>
+          <TableContainer
+            sx={{ maxHeight: "calc(100vh - 150px)", minHeight: "20%" }}
+          >
             {isLoading ? (
               <div className="flex justify-center items-center h-full">
                 <p>Loading...</p>
@@ -373,7 +382,10 @@ const Schools = () => {
                 <TableBody>
                   {filteredRows.length > 0 ? (
                     filteredRows
-                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .slice(
+                        page * rowsPerPage,
+                        page * rowsPerPage + rowsPerPage
+                      )
                       .map((row, index) => {
                         return (
                           <TableRow
@@ -400,7 +412,11 @@ const Schools = () => {
                       })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={columns.length} align="center">
+                      <TableCell
+                        colSpan={columns.length}
+                        align="center"
+                        style={{ padding: "20px 0" }}
+                      >
                         No data
                       </TableCell>
                     </TableRow>

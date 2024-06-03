@@ -54,6 +54,8 @@ const Licenses = () => {
   const [schoolName, setSchoolName] = useState("");
   const [schoolEmail, setSchoolEmail] = useState("");
 
+  const [numLicenses, setNumLicenses] = useState(1);
+
   useEffect(() => {
     const fetchSchoolDetails = async () => {
       try {
@@ -239,6 +241,24 @@ const Licenses = () => {
     setPage(0);
   };
 
+  const handleAddLicenses = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/schools/${schoolId}/licenses/admin`, {
+        numLicenses,
+      });
+      setSnackbarMessage("Licenses added successfully");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
+      fetchData();
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error adding licenses", error);
+      setSnackbarMessage("Failed to add licenses");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <header className="flex flex-wrap justify-between items-center p-4 bg-white shadow sticky top-0">
@@ -313,41 +333,30 @@ const Licenses = () => {
           >
             <div className="mb-6">
               <label className="block text-gray-700 font-semibold mb-2">
-                Name
+                Number of Licenses
               </label>
               <input
-                type="text"
-                placeholder="Enter name"
+                type="number"
+                value={numLicenses}
+                onChange={(e) => setNumLicenses(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg bg-gray-100"
+                min="1"
               />
             </div>
-            <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                placeholder="Enter email"
-                className="w-full px-4 py-2 border rounded-lg bg-gray-100"
-              />
-            </div>
-            <div className="mb-6">
-              <label className="inline-flex items-center">
-                <input type="checkbox" className="form-checkbox" />
-                <span className="ml-2 text-gray-600">
-                  Create default licenses
-                </span>
-              </label>
-            </div>
-            <button className="w-full bg-green-500 text-white py-2 mt-4 rounded-2xl hover:bg-green-600">
-              Create
+            <button
+              onClick={handleAddLicenses}
+              className="w-full bg-green-500 text-white py-2 mt-4 rounded-2xl hover:bg-green-600"
+            >
+              Add Licenses
             </button>
           </div>
         </div>
       )}
       <div className="p-4 flex-1 overflow-auto">
         <Paper sx={{ width: "100%", height: "100%", overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: "calc(100vh - 150px)" }}>
+          <TableContainer
+            sx={{ maxHeight: "calc(100vh - 150px)", minHeight: "20%" }}
+          >
             {isLoading ? (
               <div className="flex justify-center items-center h-full">
                 <p>Loading...</p>
@@ -368,33 +377,46 @@ const Licenses = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-  {rows.length > 0 ? (
-    rows
-      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-      .map((row, index) => (
-        <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
-          {columns.map((column) => {
-            const value =
-              column.id === "index"
-                ? page * rowsPerPage + index + 1
-                : row[column.id];
-            return (
-              <TableCell key={column.id} align={column.align}>
-                {column.format ? column.format(row, navigate) : value}
-              </TableCell>
-            );
-          })}
-        </TableRow>
-      ))
-  ) : (
-    <TableRow>
-      <TableCell colSpan={columns.length} align="center" style={{ padding: "50px 0" }}>
-        No Licenses!
-      </TableCell>
-    </TableRow>
-  )}
-</TableBody>
-
+                  {rows.length > 0 ? (
+                    rows
+                      .slice(
+                        page * rowsPerPage,
+                        page * rowsPerPage + rowsPerPage
+                      )
+                      .map((row, index) => (
+                        <TableRow
+                          hover
+                          role="checkbox"
+                          tabIndex={-1}
+                          key={row.licenseNo}
+                        >
+                          {columns.map((column) => {
+                            const value =
+                              column.id === "index"
+                                ? page * rowsPerPage + index + 1
+                                : row[column.id];
+                            return (
+                              <TableCell key={column.id} align={column.align}>
+                                {column.format
+                                  ? column.format(row, navigate)
+                                  : value}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        align="center"
+                        style={{ padding: "20px 0" }}
+                      >
+                        No Licenses!
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
               </Table>
             )}
           </TableContainer>

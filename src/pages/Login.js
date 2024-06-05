@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const navigate = useNavigate();
 
   const handleLogin = () => {
     if (email === 'admin@portal.cc' && password === 'admin@portal.cc') {
       localStorage.setItem('auth', 'true');
       navigate('/schools');
+      setSnackbarMessage('Login successful');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
     } else {
-      alert('Invalid credentials');
+      setSnackbarMessage('Invalid credentials');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
 
@@ -21,6 +31,13 @@ const Login = () => {
     if (e.key === 'Enter') {
       handleLogin();
     }
+  };
+
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   return (
@@ -70,6 +87,19 @@ const Login = () => {
           Login
         </button>
       </div>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+      >
+        <MuiAlert
+          onClose={handleSnackbarClose}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </MuiAlert>
+      </Snackbar>
     </div>
   );
 };

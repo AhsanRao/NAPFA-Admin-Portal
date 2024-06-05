@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login';
 import Schools from './pages/Schools';
 import Licenses from './pages/Licenses';
-import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import PublicRoute from './PublicRoute';
 import PrivateRoute from './PrivateRoute';
@@ -29,14 +28,7 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/profile"
-          element={
-            <PrivateRoute>
-              <Profile />
-            </PrivateRoute>
-          }
-        />
+        
         <Route path="*" element={<NotFound />} />
         <Route path="/licenses/:schoolId" element={<Licenses />} />
       </Routes>

@@ -7,6 +7,7 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
+import TableSortLabel from "@mui/material/TableSortLabel";
 import TablePagination from "@mui/material/TablePagination";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
@@ -41,6 +42,8 @@ const Schools = () => {
   const [newSchoolName, setNewSchoolName] = useState("");
   const [newSchoolEmail, setNewSchoolEmail] = useState("");
   const [createDefaultLicenses, setCreateDefaultLicenses] = useState(false);
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("name");
 
   const profileMenuRef = useRef(null);
   const modalRef = useRef(null);
@@ -57,7 +60,7 @@ const Schools = () => {
   };
 
   const columns = [
-    { id: "index", label: "No.", minWidth: 50 },
+    { id: "index", label: "No.", minWidth: 50, sortable: false },
     { id: "name", label: "Name", minWidth: 170 },
     { id: "email", label: "Email", minWidth: 170 },
     {
@@ -84,6 +87,7 @@ const Schools = () => {
       label: "Action",
       minWidth: 50,
       align: "left",
+      sortable: false,
       format: (row, navigate) => (
         <div className="flex space-x-4">
           <FaEdit
@@ -187,10 +191,6 @@ const Schools = () => {
       } catch (error) {
         console.error("Error deleting school", error);
         if (error.response) {
-          // The request was made and the server responded with a status code that falls out of the range of 2xx
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
           setSnackbarMessage(
             `Failed to delete school: ${error.response.data.message}`
           );
@@ -201,8 +201,6 @@ const Schools = () => {
             "Failed to delete school: No response received from the server"
           );
         } else {
-          // Something happened in setting up the request that triggered an Error
-          console.error("Error message:", error.message);
           setSnackbarMessage(`Failed to delete school: ${error.message}`);
         }
         setSnackbarSeverity("error");
@@ -217,6 +215,12 @@ const Schools = () => {
   };
 
   const handleCreateNewSchool = async () => {
+    if (!newSchoolName || !newSchoolEmail) {
+      setSnackbarMessage("Please fill in all required fields");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
     try {
       await axios.post(`${API_BASE_URL}/schools/admin`, {
         schoolName: newSchoolName,
@@ -241,6 +245,40 @@ const Schools = () => {
       row.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
       row.email.toLowerCase().includes(globalFilter.toLowerCase())
   );
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const sortRows = (array, comparator) => {
+    const stabilizedThis = array.map((el, index) => [el, index]);
+    stabilizedThis.sort((a, b) => {
+      const order = comparator(a[0], b[0]);
+      if (order !== 0) return order;
+      return a[1] - b[1];
+    });
+    return stabilizedThis.map((el) => el[0]);
+  };
+
+  const getComparator = (order, orderBy) => {
+    return order === "desc"
+      ? (a, b) => descendingComparator(a, b, orderBy)
+      : (a, b) => -descendingComparator(a, b, orderBy);
+  };
+
+  const descendingComparator = (a, b, orderBy) => {
+    if (b[orderBy] < a[orderBy]) {
+      return -1;
+    }
+    if (b[orderBy] > a[orderBy]) {
+      return 1;
+    }
+    return 0;
+  };
+
+  const sortedRows = sortRows(filteredRows, getComparator(order, orderBy));
 
   return (
     <div className="h-screen flex flex-col">
@@ -316,6 +354,7 @@ const Schools = () => {
               <input
                 type="text"
                 placeholder="Enter name"
+                required
                 className="w-full px-4 py-2 border rounded-lg bg-gray-100"
                 value={newSchoolName}
                 onChange={(e) => setNewSchoolName(e.target.value)}
@@ -328,6 +367,7 @@ const Schools = () => {
               <input
                 type="email"
                 placeholder="Enter email"
+                required
                 className="w-full px-4 py-2 border rounded-lg bg-gray-100"
                 value={newSchoolEmail}
                 onChange={(e) => setNewSchoolEmail(e.target.value)}
@@ -373,43 +413,53 @@ const Schools = () => {
                         key={column.id}
                         align={column.align}
                         style={{ minWidth: column.minWidth }}
+                        sortDirection={orderBy === column.id ? order : false}
                       >
-                        {column.label}
+                        {column.sortable !== false ? (
+                          <TableSortLabel
+                            active={orderBy === column.id}
+                            direction={orderBy === column.id ? order : "asc"}
+                            onClick={() => handleRequestSort(column.id)}
+                          >
+                            {column.label}
+                          </TableSortLabel>
+                        ) : (
+                          column.label
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
-                  {filteredRows.length > 0 ? (
-                    filteredRows
+                  {sortedRows.length > 0 ? (
+                    sortedRows
                       .slice(
                         page * rowsPerPage,
                         page * rowsPerPage + rowsPerPage
                       )
-                      .map((row, index) => {
-                        return (
-                          <TableRow
-                            hover
-                            role="checkbox"
-                            tabIndex={-1}
-                            key={row.id}
-                          >
-                            {columns.map((column) => {
-                              const value =
-                                column.id === "index"
-                                  ? page * rowsPerPage + index + 1
-                                  : row[column.id];
-                              return (
-                                <TableCell key={column.id} align={column.align}>
-                                  {column.format
-                                    ? column.format(row, navigate)
-                                    : value}
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        );
-                      })
+                      .map((row, index) => (
+                        <TableRow
+                          hover
+                          role="checkbox"
+                          tabIndex={-1}
+                          key={row.id}
+                        >
+                          {columns.map((column) => {
+                            const value =
+                              column.id === "index"
+                                ? page * rowsPerPage + index + 1
+                                : row[column.id];
+                            return (
+                              <TableCell key={column.id} align={column.align}>
+                                {column.format
+                                  ? column.format(row, navigate)
+                                  : value}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))
                   ) : (
                     <TableRow>
                       <TableCell

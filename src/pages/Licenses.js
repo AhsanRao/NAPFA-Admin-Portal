@@ -6,6 +6,7 @@ import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
+import TableSortLabel from "@mui/material/TableSortLabel";
 import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
@@ -15,11 +16,29 @@ import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import API_BASE_URL from "../apiConfig";
 
+const getStatusLabel = (expiryDate, deviceName) => {
+  const currentDate = new Date();
+  const [day, month, year] = expiryDate.split("/").map(Number);
+  const expiry = new Date(year, month - 1, day);
+  const expiryPlusTwoMonths = new Date(expiry);
+  expiryPlusTwoMonths.setMonth(expiryPlusTwoMonths.getMonth() + 2);
+
+  if (currentDate > expiryPlusTwoMonths) {
+    return { label: "Expired", className: "bg-red-100 text-red-700" };
+  } else if (currentDate > expiry) {
+    return { label: "Probation", className: "bg-yellow-100 text-yellow-700" };
+  } else if (deviceName !== "N/A" && deviceName !== "none") {
+    return { label: "Active", className: "bg-green-100 text-green-700" };
+  } else {
+    return { label: "Not Active", className: "bg-gray-100 text-gray-700" };
+  }
+};
+
 function createData(index, licenseNo, status, expiryDate, deviceName) {
   return {
     index,
     licenseNo,
-    status,
+    status: getStatusLabel(expiryDate, deviceName).label,
     expiryDate,
     deviceName,
     actionMenuOpen: false,
@@ -40,6 +59,8 @@ const Licenses = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("index");
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === "clickaway") {
@@ -100,11 +121,22 @@ const Licenses = () => {
   const handleRedo = async (id) => {
     if (window.confirm("Are you sure you want to renew this license?")) {
       try {
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        const license = rows.find((row) => row.licenseNo === id);
+        const [day, month, year] = license.expiryDate.split("/").map(Number);
+        const currentExpiryDate = new Date(year, month - 1, day);
+        const currentDate = new Date();
+
+        let newExpiryDate;
+        if (currentDate > currentExpiryDate) {
+          newExpiryDate = new Date();
+          newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
+        } else {
+          newExpiryDate = new Date(currentExpiryDate);
+          newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 1);
+        }
 
         await axios.put(`${API_BASE_URL}/schools/${schoolId}/licenses/${id}`, {
-          expiryDate: expiryDate.toISOString(),
+          expiryDate: newExpiryDate.toISOString(),
         });
         setSnackbarMessage("License renewed successfully");
         setSnackbarSeverity("success");
@@ -140,24 +172,23 @@ const Licenses = () => {
   };
 
   const columns = [
-    { id: "index", label: "No.", minWidth: 50 },
+    { id: "index", label: "No.", minWidth: 50, sortable: false },
     { id: "licenseNo", label: "License No.", minWidth: 170 },
     {
       id: "status",
       label: "Status",
       minWidth: 100,
       align: "center",
-      format: (row) => (
-        <span
-          className={`inline-block px-2 py-1 rounded-full w-20 text-center ${
-            row.status === "expired"
-              ? "bg-red-100 text-red-700"
-              : "bg-green-100 text-green-700"
-          }`}
-        >
-          {row.status}
-        </span>
-      ),
+      format: (row) => {
+        const status = getStatusLabel(row.expiryDate, row.deviceName);
+        return (
+          <span
+            className={`inline-block px-2 py-1 rounded-full w-40 text-center ${status.className}`}
+          >
+            {status.label}
+          </span>
+        );
+      },
     },
     { id: "expiryDate", label: "Expiry Date", minWidth: 100 },
     { id: "deviceName", label: "Device Name", minWidth: 170 },
@@ -166,6 +197,7 @@ const Licenses = () => {
       label: "Actions",
       minWidth: 100,
       align: "left",
+      sortable: false,
       format: (row, navigate) => (
         <div className="flex space-x-4">
           <button
@@ -258,6 +290,40 @@ const Licenses = () => {
       setSnackbarOpen(true);
     }
   };
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const sortRows = (array, comparator) => {
+    const stabilizedThis = array.map((el, index) => [el, index]);
+    stabilizedThis.sort((a, b) => {
+      const order = comparator(a[0], b[0]);
+      if (order !== 0) return order;
+      return a[1] - b[1];
+    });
+    return stabilizedThis.map((el) => el[0]);
+  };
+
+  const getComparator = (order, orderBy) => {
+    return order === "desc"
+      ? (a, b) => descendingComparator(a, b, orderBy)
+      : (a, b) => -descendingComparator(a, b, orderBy);
+  };
+
+  const descendingComparator = (a, b, orderBy) => {
+    if (b[orderBy] < a[orderBy]) {
+      return -1;
+    }
+    if (b[orderBy] > a[orderBy]) {
+      return 1;
+    }
+    return 0;
+  };
+
+  const sortedRows = sortRows(rows, getComparator(order, orderBy));
 
   return (
     <div className="h-screen flex flex-col">
@@ -370,15 +436,27 @@ const Licenses = () => {
                         key={column.id}
                         align={column.align}
                         style={{ minWidth: column.minWidth }}
+                        sortDirection={orderBy === column.id ? order : false}
                       >
-                        {column.label}
+                        {column.sortable !== false ? (
+                          <TableSortLabel
+                            active={orderBy === column.id}
+                            direction={orderBy === column.id ? order : "asc"}
+                            onClick={() => handleRequestSort(column.id)}
+                          >
+                            {column.label}
+                          </TableSortLabel>
+                        ) : (
+                          column.label
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
-                  {rows.length > 0 ? (
-                    rows
+                  {sortedRows.length > 0 ? (
+                    sortedRows
                       .slice(
                         page * rowsPerPage,
                         page * rowsPerPage + rowsPerPage

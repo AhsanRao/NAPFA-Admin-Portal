@@ -17,13 +17,14 @@ import { HiSearch } from "react-icons/hi";
 import { IoMdAdd } from "react-icons/io";
 import API_BASE_URL from "../apiConfig";
 
-function createData(id, schoolId, name, email, licenses, allLicensesActive) {
+function createData(id, schoolId, name, email, licenses, licenseIds, allLicensesActive) {
   return {
     id,
     schoolId,
     name,
     email,
     licenses,
+    licenseIds,
     allLicensesActive,
     actionMenuOpen: false,
     actionMenuRef: React.createRef(),
@@ -51,6 +52,15 @@ const Schools = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    fetchData();
+    const auth = localStorage.getItem('auth');
+    setUserRole(auth);
+  }, []);
+
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === "clickaway") {
@@ -95,11 +105,13 @@ const Schools = () => {
             className="cursor-pointer text-blue-500"
             onClick={() => navigate(`/licenses/${row.schoolId}`)}
           />
+          {userRole === 'admin' && (
           <FaTrashAlt
             size={16}
             className="cursor-pointer text-red-500"
             onClick={() => handleDelete(row.schoolId)}
           />
+        )}
         </div>
       ),
     },
@@ -116,6 +128,7 @@ const Schools = () => {
           school.name,
           school.email,
           school.licenses,
+          school.licenseIds,
           school.allLicensesActive
         )
       );
@@ -181,6 +194,12 @@ const Schools = () => {
   };
 
   const handleDelete = async (schoolId) => {
+    if (userRole !== 'admin') {
+      setSnackbarMessage("You don't have permission to delete a school");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
     if (window.confirm("Are you sure you want to delete this school?")) {
       try {
         await axios.delete(`${API_BASE_URL}/schools/${schoolId}`);
@@ -215,6 +234,12 @@ const Schools = () => {
   };
 
   const handleCreateNewSchool = async () => {
+    if (userRole !== 'admin') {
+      setSnackbarMessage("You don't have permission to create a new school");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
     if (!newSchoolName || !newSchoolEmail) {
       setSnackbarMessage("Please fill in all required fields");
       setSnackbarSeverity("error");
@@ -243,7 +268,8 @@ const Schools = () => {
   const filteredRows = rows.filter(
     (row) =>
       row.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-      row.email.toLowerCase().includes(globalFilter.toLowerCase())
+      row.email.toLowerCase().includes(globalFilter.toLowerCase()) ||
+      row.licenseIds.some(licenseId => licenseId.toLowerCase() === globalFilter.toLowerCase())
   );
 
   const handleRequestSort = (property) => {
@@ -297,6 +323,7 @@ const Schools = () => {
           <HiSearch className="absolute top-3 left-3 text-gray-500" />
         </div>
         <div className="flex items-center space-x-4 w-full md:w-auto mt-4 md:mt-0">
+        {userRole === 'admin' && (
           <button
             className="flex items-center p-2 pl-4 pr-4 bg-yellow-500 text-white rounded-full hover:bg-yellow-600"
             onClick={handleOpenModal}
@@ -304,6 +331,7 @@ const Schools = () => {
             <IoMdAdd className="mr-3" />
             New Account
           </button>
+        )}
           <div className="relative" ref={profileMenuRef}>
             <img
               src="/profile.png"
@@ -315,8 +343,13 @@ const Schools = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-20">
                 <div className="p-2">
                   <div className="flex flex-col items-start px-4 py-2 text-sm text-gray-700">
-                    <span className="font-bold">Admin</span>
-                    <span>admin@example.com</span>
+                  <span className="font-bold">{userRole}</span>
+                    {userRole === 'admin' && (
+                      <span>admin@portal.cc</span>
+                    )}
+                    {userRole === 'user' && (
+                      <span>user@portal.cc</span>
+                    )}
                   </div>
                   <hr className="my-2" />
                   <button

@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  useCallback,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import Paper from "@mui/material/Paper";
@@ -77,6 +83,15 @@ const Licenses = () => {
 
   const [numLicenses, setNumLicenses] = useState(1);
 
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    fetchData();
+    const auth = localStorage.getItem("auth");
+    setUserRole(auth);
+    // eslint-disable-next-line
+  }, []);
+
   useEffect(() => {
     const fetchSchoolDetails = async () => {
       try {
@@ -119,6 +134,12 @@ const Licenses = () => {
   }, [fetchData]);
 
   const handleRedo = async (id) => {
+    if (userRole !== "admin") {
+      setSnackbarMessage("You don't have permission to renew a license");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
     if (window.confirm("Are you sure you want to renew this license?")) {
       try {
         const license = rows.find((row) => row.licenseNo === id);
@@ -152,6 +173,12 @@ const Licenses = () => {
   };
 
   const handleDelete = async (id) => {
+    if (userRole !== "admin") {
+      setSnackbarMessage("You don't have permission to delete a license");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
     if (window.confirm("Are you sure you want to delete this license?")) {
       try {
         await axios.delete(
@@ -171,7 +198,7 @@ const Licenses = () => {
     }
   };
 
-  const columns = [
+  const baseColumns = [
     { id: "index", label: "No.", minWidth: 50, sortable: false },
     { id: "licenseNo", label: "License No.", minWidth: 170 },
     {
@@ -192,32 +219,41 @@ const Licenses = () => {
     },
     { id: "expiryDate", label: "Expiry Date", minWidth: 100 },
     { id: "deviceName", label: "Device Name", minWidth: 170 },
-    {
-      id: "actions",
-      label: "Actions",
-      minWidth: 100,
-      align: "left",
-      sortable: false,
-      format: (row, navigate) => (
-        <div className="flex space-x-4">
-          <button
-            onClick={() => handleRedo(row.licenseNo)}
-            className="text-blue-500 hover:text-blue-700"
-            title="Renew License"
-          >
-            <FaRedo size={16} />
-          </button>
-          <button
-            onClick={() => handleDelete(row.licenseNo)}
-            className="text-red-500 hover:text-red-700"
-            title="Delete License"
-          >
-            <FaTrashAlt size={16} />
-          </button>
-        </div>
-      ),
-    },
   ];
+
+  const actionColumn = {
+    id: "actions",
+    label: "Actions",
+    minWidth: 100,
+    align: "left",
+    sortable: false,
+    format: (row, navigate) => (
+      <div className="flex space-x-4">
+        <button
+          onClick={() => handleRedo(row.licenseNo)}
+          className="text-blue-500 hover:text-blue-700"
+          title="Renew License"
+        >
+          <FaRedo size={16} />
+        </button>
+        <button
+          onClick={() => handleDelete(row.licenseNo)}
+          className="text-red-500 hover:text-red-700"
+          title="Delete License"
+        >
+          <FaTrashAlt size={16} />
+        </button>
+      </div>
+    ),
+  };
+
+  const columns = useMemo(() => {
+    if (userRole === "admin") {
+      return [...baseColumns, actionColumn];
+    }
+    return baseColumns;
+    // eslint-disable-next-line
+  }, [userRole]);
 
   const handleLogout = () => {
     localStorage.removeItem("auth");
@@ -365,8 +401,9 @@ const Licenses = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-20">
                 <div className="p-2">
                   <div className="flex flex-col items-start px-4 py-2 text-sm text-gray-700">
-                    <span className="font-bold">Admin</span>
-                    <span>admin@example.com</span>
+                    <span className="font-bold">{userRole}</span>
+                    {userRole === "admin" && <span>admin@portal.cc</span>}
+                    {userRole === "user" && <span>user@portal.cc</span>}
                   </div>
                   <hr className="my-2" />
                   <button

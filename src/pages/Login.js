@@ -15,9 +15,15 @@ const Login = () => {
 
   const handleLogin = () => {
     if (email === 'admin@portal.cc' && password === 'admin@portal.cc') {
-      localStorage.setItem('auth', 'true');
+      localStorage.setItem('auth', 'admin');
       navigate('/schools');
-      setSnackbarMessage('Login successful');
+      setSnackbarMessage('Admin Login successful');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } else if (email === 'user@portal.cc' && password === 'user@portal.cc') {
+      localStorage.setItem('auth', 'user');
+      navigate('/schools');
+      setSnackbarMessage('User login successful');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } else {
